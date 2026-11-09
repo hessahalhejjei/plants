@@ -1,0 +1,17 @@
+name: iOS checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run app unit and UI tests
+        run: ./scripts/test-ios.sh
