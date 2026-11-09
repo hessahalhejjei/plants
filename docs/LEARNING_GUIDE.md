@@ -26,6 +26,8 @@ The app uses SwiftUI’s built-in views and state tools. There are no third-part
 
 `PlantIllustration.swift` is optional artwork code using `Canvas` and paths. You can learn the screen-building topics without studying how the illustration is drawn. The UI-test launch settings at the bottom of `PlantoApp.swift` only isolate automated test data.
 
+The editor uses `AnyLayout` to switch the name row between an `HStackLayout` and a `VStackLayout` for larger accessibility text. It keeps one `TextField` alive in both layouts, preserving keyboard focus while you type.
+
 ## The state tools, simply
 
 - **`@State`** holds a view’s temporary state, such as which sheet is open or the form’s draft.

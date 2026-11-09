@@ -4,6 +4,7 @@ import SwiftUI
 struct ReminderEditor: View {
     @EnvironmentObject private var store: PlantStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState private var nameIsFocused: Bool
     @State private var draft: PlantReminder
     @State private var showingDeleteConfirmation = false
@@ -65,7 +66,6 @@ struct ReminderEditor: View {
             Button("Delete Reminder", role: .destructive) {
                 if store.delete(draft) { dismiss() }
             }
-            .accessibilityIdentifier("reminder.confirmDelete")
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will remove the plant and its scheduled reminders.")
@@ -115,16 +115,15 @@ struct ReminderEditor: View {
     }
 
     private var nameField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
-                    Text("Plant Name").fixedSize()
-                    input
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Plant Name")
-                    input
-                }
+        // Change the layout without replacing the focused text field while typing.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 10))
+
+        return VStack(alignment: .leading, spacing: 8) {
+            layout {
+                Text("Plant Name").fixedSize(horizontal: false, vertical: true)
+                input
             }
             .font(.subheadline)
             .padding(.horizontal, 16)
