@@ -231,14 +231,14 @@ struct ContentView: View {
     private func row(for plant: PlantReminder) -> some View {
         PlantReminderRow(plant: plant, day: store.currentDay) {
             withAnimation(careAnimation) {
-                store.toggleCompletion(for: plant)
+                _ = store.toggleCompletion(for: plant)
             }
         } onEdit: {
             editor = ReminderSheet(plant: plant)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
-                withAnimation(careAnimation) { store.delete(plant) }
+                withAnimation(careAnimation) { _ = store.delete(plant) }
             } label: {
                 Label("Delete", systemImage: "trash")
             }

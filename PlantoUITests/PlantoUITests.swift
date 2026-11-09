@@ -168,7 +168,7 @@ final class PlantoUITests: XCTestCase {
         let choice = app.buttons[option].firstMatch
         // Some iOS versions expose a Picker as a submenu inside its Menu.
         if !choice.waitForExistence(timeout: 2) {
-            let submenu = app.buttons[field].lastMatch
+            let submenu = app.buttons.matching(identifier: field).firstMatch
             XCTAssertTrue(submenu.waitForExistence(timeout: 3))
             submenu.tap()
         }
