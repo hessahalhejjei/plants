@@ -21,6 +21,8 @@ Planto uses separate models because it also supports persistence, editing, water
 
 ## Files to read
 
+Start with `PlantReminder`, `PlantsViewModel`, and `ReminderEditor`. They show the data, actions, and form inputs. Storage, notifications, and glass styling are separate so you can learn them later without changing how the main flow works.
+
 1. **`Models/PlantReminder.swift`** — the plant struct, care enums, and due/completed checks. `WateringSchedule.swift` calculates future alert dates without calling iOS APIs.
 2. **`ViewModels/PlantsViewModel.swift`** — saved plants, today's progress, list sections, and save/delete/water actions. It writes to storage before publishing changes.
 3. **`ViewModels/ContentViewModel.swift`** and **`Views/ContentView.swift`** — published sheet/list state and the screen that binds to it.
@@ -50,7 +52,7 @@ Planto uses separate models because it also supports persistence, editing, water
 - `@StateObject` keeps a view-owned model alive when SwiftUI redraws the view.
 - `@EnvironmentObject` reads the shared models created by `PlantoApp`.
 - `$model.draft.room` binds a picker to the editor's draft. `$viewModel.editor` lets sheet dismissal clear the selected sheet.
-- `@FocusState` tracks keyboard focus. `AnyLayout` changes the name field's layout for large text without replacing the focused field.
+- `AnyLayout` changes the name field's layout for large text without replacing the field, so typing keeps its place.
 - `@MainActor` keeps mutable screen state on the main actor. Notification calls use `async`/`await` so waiting for permission does not block the screen.
 
 ## Follow the actions

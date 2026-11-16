@@ -33,7 +33,7 @@ final class PlantsViewModel: ObservableObject {
         let loaded = self.storage.load()
         plants = loaded.plants
         errorMessage = loaded.message
-        updatePresentation()
+        rememberPlantCreation()
     }
 
     var dueToday: [PlantReminder] {
@@ -50,7 +50,7 @@ final class PlantsViewModel: ObservableObject {
 
     func refreshDay() {
         currentDay = calendar.startOfDay(for: now())
-        updatePresentation()
+        rememberPlantCreation()
     }
 
     @discardableResult
@@ -114,11 +114,10 @@ final class PlantsViewModel: ObservableObject {
         return "\(completedTodayCount) of your plants feel loved today!✨"
     }
 
-    private func updatePresentation() {
-        if hasPlants {
-            hasCreatedPlant = true
-            defaults.set(true, forKey: "hasCreatedPlant")
-        }
+    private func rememberPlantCreation() {
+        guard hasPlants && !hasCreatedPlant else { return }
+        hasCreatedPlant = true
+        defaults.set(true, forKey: "hasCreatedPlant")
     }
 
     private func commit(_ updated: [PlantReminder]) -> Bool {

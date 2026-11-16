@@ -65,6 +65,7 @@ private struct PlantControlSurface<ControlShape: Shape>: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
+        // Xcode 26 supplies these APIs; older compilers build the solid fallback.
         #if compiler(>=6.2)
         if #available(iOS 26.0, *), !reduceTransparency {
             if isProminent {

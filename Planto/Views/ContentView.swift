@@ -129,6 +129,7 @@ struct ContentView: View {
         }
     }
 
+    // Center short content, but allow scrolling when larger text needs more space.
     private func centeredContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         let screen = content()
         return GeometryReader { geometry in

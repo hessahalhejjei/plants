@@ -4,7 +4,6 @@ import SwiftUI
 struct ReminderEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @FocusState private var nameIsFocused: Bool
     @StateObject private var model: ReminderEditorViewModel
 
     init(plant: PlantReminder?, plants: PlantsViewModel) {
@@ -120,7 +119,6 @@ struct ReminderEditor: View {
 
     private var input: some View {
         TextField("Pothos", text: $model.draft.name)
-            .focused($nameIsFocused)
             .textInputAutocapitalization(.words)
             .autocorrectionDisabled()
             .submitLabel(.done)

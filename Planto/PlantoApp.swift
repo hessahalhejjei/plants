@@ -23,7 +23,7 @@ struct PlantoApp: App {
                 .environmentObject(plants)
                 .environmentObject(notifications)
                 .preferredColorScheme(.dark)
-                .tint(Color(red: 0.12, green: 0.84, blue: 0.67))
+                .tint(PlantTheme.accent)
                 .task {
                     guard !launchSettings.isUITesting else { return }
                     await notifications.sync(plants: plants.plants)

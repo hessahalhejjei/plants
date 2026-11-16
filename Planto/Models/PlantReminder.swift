@@ -1,9 +1,7 @@
 import Foundation
 
-enum Room: String, CaseIterable, Codable, Identifiable {
+enum Room: String, CaseIterable, Codable {
     case bedroom, livingRoom, kitchen, balcony, bathroom
-
-    var id: String { rawValue }
 
     var displayName: String {
         switch self {
@@ -16,10 +14,8 @@ enum Room: String, CaseIterable, Codable, Identifiable {
     }
 }
 
-enum LightLevel: String, CaseIterable, Codable, Identifiable {
+enum LightLevel: String, CaseIterable, Codable {
     case fullSun, partialSun, lowLight
-
-    var id: String { rawValue }
 
     var displayName: String {
         switch self {
@@ -38,10 +34,8 @@ enum LightLevel: String, CaseIterable, Codable, Identifiable {
     }
 }
 
-enum WateringFrequency: String, CaseIterable, Codable, Identifiable {
+enum WateringFrequency: String, CaseIterable, Codable {
     case daily, everyTwoDays, everyThreeDays, weekly, everyTenDays, biweekly
-
-    var id: String { rawValue }
 
     var displayName: String {
         switch self {
@@ -66,10 +60,8 @@ enum WateringFrequency: String, CaseIterable, Codable, Identifiable {
     }
 }
 
-enum WaterAmount: String, CaseIterable, Codable, Identifiable {
+enum WaterAmount: String, CaseIterable, Codable {
     case small, medium, large, extraLarge
-
-    var id: String { rawValue }
 
     var displayName: String {
         switch self {
