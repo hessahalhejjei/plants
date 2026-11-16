@@ -1,18 +1,12 @@
 import SwiftUI
 import UIKit
-import UserNotifications
 
 @MainActor
 struct NotificationSettingsView: View {
-    @EnvironmentObject private var notifications: NotificationManager
-    @EnvironmentObject private var store: PlantStore
+    @EnvironmentObject private var notifications: NotificationSettingsViewModel
+    @EnvironmentObject private var store: PlantsViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    @State private var requesting = false
-
-    private var isUITesting: Bool {
-        ProcessInfo.processInfo.arguments.contains("--ui-testing")
-    }
 
     var body: some View {
         ScrollView {
@@ -34,7 +28,7 @@ struct NotificationSettingsView: View {
                     .font(.system(size: 34))
                     .foregroundStyle(PlantTheme.accent)
                     .accessibilityHidden(true)
-                Text(statusDescription)
+                Text(notifications.statusDescription)
                     .font(.subheadline)
                     .foregroundStyle(PlantTheme.secondary)
                     .multilineTextAlignment(.center)
@@ -42,25 +36,19 @@ struct NotificationSettingsView: View {
 
                 if notifications.status == .notDetermined {
                     Button {
-                        guard !isUITesting else { return }
-                        requesting = true
-                        Task {
-                            await notifications.requestAuthorization()
-                            await notifications.sync(plants: store.plants)
-                            requesting = false
-                        }
+                        Task { await notifications.enableReminders { store.plants } }
                     } label: {
-                        if requesting {
+                        if notifications.requesting {
                             ProgressView().tint(.white)
                         } else {
                             Text("Enable Reminders")
                         }
                     }
                     .buttonStyle(PlantPrimaryButton())
-                    .disabled(requesting)
+                    .disabled(notifications.requesting)
                 } else {
                     Button("Open Notification Settings") {
-                        guard !isUITesting else { return }
+                        guard notifications.canOpenSettings else { return }
                         if let url = URL(string: UIApplication.openSettingsURLString) {
                             openURL(url)
                         }
@@ -84,18 +72,7 @@ struct NotificationSettingsView: View {
         }
         .background(PlantTheme.sheet)
         .task {
-            guard !isUITesting else { return }
             await notifications.refreshAuthorization()
         }
-    }
-
-    private var statusDescription: String {
-        if notifications.isAuthorized {
-            return "Reminders are enabled. We’ll send a nudge at 9:00 AM when a plant is due for water."
-        }
-        if notifications.status == .denied {
-            return "Notifications are turned off. You can enable them in Settings to receive watering reminders at 9:00 AM. Your plants are always available here."
-        }
-        return "Let Planto remind you at 9:00 AM when a plant is due for water. You can change notification permissions in Settings at any time."
     }
 }

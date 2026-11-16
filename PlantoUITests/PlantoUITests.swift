@@ -13,13 +13,13 @@ final class PlantoUITests: XCTestCase {
 
         let save = app.buttons["reminder.save"]
         XCTAssertTrue(save.waitForExistence(timeout: 5))
-        XCTAssertFalse(save.isEnabled)
+        assertEnabled(false, for: save)
         let name = app.textFields["reminder.name"].firstMatch
         name.tap()
         name.typeText("   ")
-        XCTAssertFalse(save.isEnabled)
-        replaceName(in: app, with: String(repeating: "a", count: 61))
-        XCTAssertFalse(save.isEnabled)
+        assertEnabled(false, for: save)
+        replaceName(in: app, with: String(repeating: "A", count: 61))
+        assertEnabled(false, for: save)
         XCTAssertTrue(app.staticTexts["Keep your plant’s name to 60 characters or fewer."].exists)
 
         app.buttons["reminder.cancel"].tap()
@@ -108,11 +108,28 @@ final class PlantoUITests: XCTestCase {
         addPlant("Fern", in: app)
         editButton("Fern", in: app).tap()
         app.buttons["reminder.delete"].tap()
-        let confirmation = app.buttons["reminder.confirmDelete"]
+        // Restrict the query to the native dialog, away from the editor's button.
+        let title = "Delete Fern?"
+        let dialogs = [
+            app.sheets.containing(.staticText, identifier: title).firstMatch,
+            app.alerts.containing(.staticText, identifier: title).firstMatch,
+            app.popovers.containing(.staticText, identifier: title).firstMatch
+        ]
+        guard let dialog = dialogs.first(where: { $0.waitForExistence(timeout: 2) }) else {
+            XCTFail("The delete confirmation dialog did not appear.")
+            return
+        }
+        let confirmation = dialog.buttons["Delete Reminder"].firstMatch
         XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
         confirmation.tap()
         XCTAssertTrue(app.staticTexts["reminders.empty"].waitForExistence(timeout: 5))
 
+        // The view model must retain the welcome preference even with no plants.
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["reminders.empty"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["welcome.title"].exists)
         addPlant("New Fern", in: app)
         XCTAssertTrue(editButton("New Fern", in: app).waitForExistence(timeout: 5))
     }
@@ -156,10 +173,29 @@ final class PlantoUITests: XCTestCase {
     private func replaceName(in app: XCUIApplication, with name: String) {
         let field = app.textFields["reminder.name"].firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        field.tap()
         let previous = field.value as? String ?? ""
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count))
+        // Tapping in the middle can leave the cursor before the end of an old name.
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+        if !previous.isEmpty {
+            // An empty field may report its placeholder; extra deletes are harmless.
+            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count))
+        }
         field.typeText(name)
+        let entered = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", name), object: field
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [entered], timeout: 5), .completed,
+                       "The name field must contain the requested text before testing the form.")
+    }
+
+    @MainActor
+    private func assertEnabled(_ enabled: Bool, for element: XCUIElement) {
+        let updated = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "enabled == %@", NSNumber(value: enabled)),
+            object: element
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [updated], timeout: 5), .completed)
+        XCTAssertEqual(element.isEnabled, enabled)
     }
 
     @MainActor
@@ -168,7 +204,7 @@ final class PlantoUITests: XCTestCase {
         let choice = app.buttons[option].firstMatch
         // Some iOS versions expose a Picker as a submenu inside its Menu.
         if !choice.waitForExistence(timeout: 2) {
-            let submenu = app.buttons[field].lastMatch
+            let submenu = app.buttons.matching(identifier: field).firstMatch
             XCTAssertTrue(submenu.waitForExistence(timeout: 3))
             submenu.tap()
         }

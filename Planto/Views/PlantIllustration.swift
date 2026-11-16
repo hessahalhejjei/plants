@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// A vector illustration that stays crisp at every text and display size.
 struct PlantIllustration: View {
     var isCelebrating = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

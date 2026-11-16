@@ -1,7 +1,7 @@
 import XCTest
 @testable import Planto
 
-final class PlantStoreTests: XCTestCase {
+final class PlantsViewModelTests: XCTestCase {
     private var calendar: Calendar {
         var value = Calendar(identifier: .gregorian)
         value.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -19,11 +19,23 @@ final class PlantStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testAddEditAndDeletePersistAcrossStoreInstances() async throws {
+    private func makeModel(
+        storageURL: URL,
+        now: @escaping () -> Date = Date.init,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> PlantsViewModel {
+        let name = "PlantoTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: name) }
+        return PlantsViewModel(storageURL: storageURL, now: now, calendar: calendar, defaults: defaults)
+    }
+
+    @MainActor
+    func testAddEditAndDeletePersistAcrossViewModelInstances() async throws {
         let file = temporaryFile()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let today = date(9)
-        let store = PlantStore(storageURL: file, now: { today }, calendar: calendar)
+        let store = makeModel(storageURL: file, now: { today }, calendar: calendar)
         var plant = PlantReminder(name: "  Monstera  ", createdAt: today)
         XCTAssertTrue(store.save(plant))
         XCTAssertEqual(store.plants.first?.name, "Monstera")
@@ -31,10 +43,10 @@ final class PlantStoreTests: XCTestCase {
         plant.room = .kitchen
         plant.frequency = .weekly
         XCTAssertTrue(store.save(plant))
-        let restored = PlantStore(storageURL: file, now: { today }, calendar: calendar)
+        let restored = makeModel(storageURL: file, now: { today }, calendar: calendar)
         XCTAssertEqual(restored.plants, [plant])
         XCTAssertTrue(restored.delete(plant))
-        XCTAssertTrue(PlantStore(storageURL: file).plants.isEmpty)
+        XCTAssertTrue(makeModel(storageURL: file).plants.isEmpty)
     }
 
     @MainActor
@@ -42,7 +54,7 @@ final class PlantStoreTests: XCTestCase {
         let file = temporaryFile()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let today = date(9)
-        let store = PlantStore(storageURL: file, now: { today }, calendar: calendar)
+        let store = makeModel(storageURL: file, now: { today }, calendar: calendar)
         let first = PlantReminder(name: "Pothos", createdAt: today)
         let second = PlantReminder(name: "Orchid", createdAt: today)
         XCTAssertTrue(store.save(first))
@@ -54,7 +66,7 @@ final class PlantStoreTests: XCTestCase {
         XCTAssertEqual(store.dueToday.map(\.id), [second.id])
         XCTAssertTrue(store.toggleCompletion(for: second))
         XCTAssertTrue(store.allDoneToday)
-        XCTAssertEqual(PlantStore(storageURL: file, now: { today }, calendar: calendar).completedTodayCount, 2)
+        XCTAssertEqual(makeModel(storageURL: file, now: { today }, calendar: calendar).completedTodayCount, 2)
         XCTAssertTrue(store.toggleCompletion(for: first))
         XCTAssertFalse(store.allDoneToday)
         XCTAssertEqual(store.totalTodayCount, 2)
@@ -66,7 +78,7 @@ final class PlantStoreTests: XCTestCase {
         let file = temporaryFile()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         var now = date(9)
-        let store = PlantStore(storageURL: file, now: { now }, calendar: calendar)
+        let store = makeModel(storageURL: file, now: { now }, calendar: calendar)
         let daily = PlantReminder(name: "Daily", createdAt: now)
         let weekly = PlantReminder(name: "Weekly", frequency: .weekly, createdAt: now)
         XCTAssertTrue(store.save(daily))
@@ -84,7 +96,7 @@ final class PlantStoreTests: XCTestCase {
     @MainActor
     func testWhitespaceNameDoesNotCreateReminderOrPersistenceFile() async {
         let file = temporaryFile()
-        let store = PlantStore(storageURL: file)
+        let store = makeModel(storageURL: file)
         XCTAssertFalse(store.save(PlantReminder(name: " \n ")))
         XCTAssertTrue(store.plants.isEmpty)
         XCTAssertNotNil(store.errorMessage)
@@ -98,7 +110,7 @@ final class PlantStoreTests: XCTestCase {
         // The parent path is deliberately a file, so creating the storage directory fails.
         try Data("blocked".utf8).write(to: directory)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let store = PlantStore(storageURL: file)
+        let store = makeModel(storageURL: file)
         XCTAssertFalse(store.save(PlantReminder(name: "Fern")))
         XCTAssertTrue(store.plants.isEmpty)
         XCTAssertNotNil(store.errorMessage)
@@ -113,7 +125,7 @@ final class PlantStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let original = Data("unreadable reminders".utf8)
         try original.write(to: file)
-        let store = PlantStore(storageURL: file)
+        let store = makeModel(storageURL: file)
         XCTAssertTrue(store.plants.isEmpty)
         XCTAssertNotNil(store.errorMessage)
         XCTAssertEqual(try Data(contentsOf: file), original)
@@ -121,14 +133,14 @@ final class PlantStoreTests: XCTestCase {
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
         let backup = try XCTUnwrap(files.first { $0.lastPathComponent.contains("recovery-") })
         XCTAssertEqual(try Data(contentsOf: backup), original)
-        XCTAssertEqual(PlantStore(storageURL: file).plants.count, 1)
+        XCTAssertEqual(makeModel(storageURL: file).plants.count, 1)
     }
 
     @MainActor
     func testNameLengthBoundaryAllowsSixtyCharactersAndRejectsSixtyOne() async throws {
         let file = temporaryFile()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let store = PlantStore(storageURL: file)
+        let store = makeModel(storageURL: file)
         var plant = PlantReminder(name: String(repeating: "🌿", count: 60))
         XCTAssertTrue(store.save(plant))
         let originalData = try Data(contentsOf: file)
@@ -144,7 +156,7 @@ final class PlantStoreTests: XCTestCase {
         let file = temporaryFile()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let today = date(9)
-        let store = PlantStore(storageURL: file, now: { today }, calendar: calendar)
+        let store = makeModel(storageURL: file, now: { today }, calendar: calendar)
         let plant = PlantReminder(name: "Pothos", createdAt: date(8))
         XCTAssertTrue(store.save(plant))
         var olderDraft = plant
@@ -160,7 +172,7 @@ final class PlantStoreTests: XCTestCase {
         XCTAssertEqual(edited.createdAt, plant.createdAt)
         XCTAssertEqual(edited.wateringDates, [today])
         XCTAssertTrue(store.allDoneToday)
-        XCTAssertEqual(PlantStore(storageURL: file, now: { today }, calendar: calendar).plants, [edited])
+        XCTAssertEqual(makeModel(storageURL: file, now: { today }, calendar: calendar).plants, [edited])
     }
 
     @MainActor
@@ -168,7 +180,7 @@ final class PlantStoreTests: XCTestCase {
         let file = temporaryFile()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let today = date(9)
-        let store = PlantStore(storageURL: file, now: { today }, calendar: calendar)
+        let store = makeModel(storageURL: file, now: { today }, calendar: calendar)
         let plant = PlantReminder(name: "Fern", createdAt: today)
         XCTAssertTrue(store.save(plant))
         XCTAssertTrue(store.toggleCompletion(for: plant))
@@ -191,7 +203,7 @@ final class PlantStoreTests: XCTestCase {
             try? FileManager.default.removeItem(at: directory)
             try? FileManager.default.removeItem(at: preservedDirectory)
         }
-        let store = PlantStore(storageURL: file)
+        let store = makeModel(storageURL: file)
         let plant = PlantReminder(name: "Monstera")
         XCTAssertTrue(store.save(plant))
         let originalPlants = store.plants
@@ -213,7 +225,7 @@ final class PlantStoreTests: XCTestCase {
 
         try FileManager.default.removeItem(at: directory)
         try FileManager.default.moveItem(at: preservedDirectory, to: directory)
-        XCTAssertEqual(PlantStore(storageURL: file).plants, originalPlants)
+        XCTAssertEqual(makeModel(storageURL: file).plants, originalPlants)
     }
 
     @MainActor
@@ -237,7 +249,7 @@ final class PlantStoreTests: XCTestCase {
         let original = try JSONEncoder().encode(plants)
         try original.write(to: file)
 
-        let store = PlantStore(storageURL: file)
+        let store = makeModel(storageURL: file)
         XCTAssertTrue(store.plants.isEmpty)
         XCTAssertNotNil(store.errorMessage)
         XCTAssertEqual(try Data(contentsOf: file), original)

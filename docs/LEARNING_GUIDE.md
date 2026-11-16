@@ -1,52 +1,70 @@
-# Learn SwiftUI by reading Planto
+# Learning SwiftUI and MVVM with Planto
 
-The app uses SwiftUI’s built-in views and state tools. There are no third-party app libraries. Start with the screens, then read how the saved data and notifications support them.
+MVVM separates plant data (**Model**), screen layout (**View**), and state/actions (**ViewModel**). File storage and iOS notifications live in services.
 
-## The eight topics from your design
+## Comparing the reference
 
-| Topic | Where to look | What it does here |
-| --- | --- | --- |
-| `VStack`, `HStack`, `ZStack` | `ContentView`, `ReminderEditor`, `PlantProgressStyle` | Arrange text vertically, put controls side by side, and layer the progress fill over its track. |
-| Custom navigation bar and sheet | `ContentView`’s `.sheet(item:)` and `ReminderEditor.navigationBar` | Open a form from the list and give it cancel, title, and save controls. |
-| `TextField`, `Picker`, custom input rows | `ReminderEditor.nameField` and `pickerRow` | Bind the plant name and care options to an editable draft. The native pickers live inside menus. |
-| `List` and `ScrollView` | `ContentView.reminderList`, `welcome`, and the editor | Render reminder rows and let longer content scroll on small screens or with large text. |
-| Custom animated `ProgressView` | `PlantTheme.swift` → `PlantProgressStyle` | Use two capsules for the track and fill. Animate the filled width when the completion fraction changes. Respect Reduce Motion. |
-| Check/uncheck and swipe to delete | `PlantReminderRow`, `ContentView.row`, `PlantStore.toggleCompletion` | Button actions change saved state; `.swipeActions` exposes edit and delete. |
-| Local notifications | `NotificationSettingsView`, `NotificationManager`, `WateringSchedule` | Ask permission after a user action, calculate future dates, and schedule/cancel local alerts. |
-| Theming and dark mode | `PlantTheme` and `PlantoApp` | Keep colors and button styling together. Apply `.preferredColorScheme(.dark)` once at the root to match the supplied design. |
+Use CakeBakery's [`MVVM` branch](https://github.com/adatwq/CakeBakery-HelloWorld/tree/9da956d0c9479489781fb7eb7a5ed634507a547b). Its `main` branch is the earlier version that keeps state in the view.
 
-## A useful reading order
+The example has four Swift files: `Cake.swift`, `CakeViewModel.swift`, `ContentView.swift`, and the app entry point. `Cake` is an `Identifiable` struct. `CakeViewModel` publishes form fields, the cake array, and the sheet flag. The view owns it with `@StateObject`, binds inputs, and calls `addCake()` to save.
 
-1. **`PlantReminder.swift`**: a `struct` holds one plant. The four enums define the exact allowed care options. `Identifiable` gives `ForEach` a stable ID; `Codable` lets the app save and load JSON.
-2. **`ContentView.swift`**: follow the `if` statements in `body`. They choose welcome, empty, reminder list, or all-done content.
-3. **`ReminderEditor.swift`**: follow the draft from its initial value through each input and into the Save action.
-4. **`PlantTheme.swift`**: see how a small `ButtonStyle` and `ProgressViewStyle` keep the screens consistent.
-5. **`PlantStore.swift`**: read `save`, `delete`, and `toggleCompletion` before the file-loading/error-handling code.
-6. **`WateringSchedule.swift`**, then **`NotificationManager.swift`**: read the date rules separately from iOS permission and delivery APIs.
+| In CakeBakery | In Planto |
+| --- | --- |
+| `Cake` | `PlantReminder`: care details, identity, and watering history. |
+| Published `cakes` array | `PlantsViewModel.plants`: shared saved plants. |
+| Published form fields | `ReminderEditorViewModel.draft`: an editable copy of a plant. |
+| `showAddCakeSheet` | `ContentViewModel.editor`: the current add/edit sheet. |
+| `addCake()` | Editor `save()` calls `PlantsViewModel.save(_:)`. |
+| View-owned `@StateObject` | Each content view owns its screen model; each editor owns its draft model. |
 
-`PlantIllustration.swift` is optional artwork code using `Canvas` and paths. You can learn the screen-building topics without studying how the illustration is drawn. The UI-test launch settings at the bottom of `PlantoApp.swift` only isolate automated test data.
+Planto uses separate models because it also supports persistence, editing, watering history, and notification permissions. `PlantsViewModel` is shared by the app. `ContentViewModel` belongs to one window, so opening a sheet does not open it in other windows.
 
-## The state tools, simply
+## Files to read
 
-- **`@State`** holds a view’s temporary state, such as which sheet is open or the form’s draft.
-- **`@Binding`** lets an input change a value owned somewhere else. `$draft.room` binds the room picker to the draft’s room.
-- **`@StateObject`** creates one shared store/notification manager for the app’s lifetime.
-- **`@EnvironmentObject`** lets child views use those shared objects without passing them through every view initializer.
-- **`@Published`** tells SwiftUI when store data changed so the screen can redraw.
-- **`@AppStorage`** remembers a small preference: whether the user has created a plant before.
-- **`@Environment`** reads system values such as dismiss, scene activity, and Reduce Motion.
-- **`@MainActor`** keeps UI-related state changes on the main actor. `async`/`await` lets iOS notification requests finish without blocking the screen.
+1. **`Models/PlantReminder.swift`** — the plant struct, care enums, and due/completed checks. `WateringSchedule.swift` calculates future alert dates without calling iOS APIs.
+2. **`ViewModels/PlantsViewModel.swift`** — saved plants, today's progress, list sections, and save/delete/water actions. It writes to storage before publishing changes.
+3. **`ViewModels/ContentViewModel.swift`** and **`Views/ContentView.swift`** — published sheet/list state and the screen that binds to it.
+4. **`ViewModels/ReminderEditorViewModel.swift`** and **`Views/ReminderEditor.swift`** — draft inputs and name validation. Layout, keyboard focus, and dismissal stay in the view.
+5. **`Services/JSONPlantStorage.swift`** — atomic JSON writes and recovery copies for unreadable files. `PlantPersistence` lets tests substitute in-memory storage.
+6. **`ViewModels/NotificationSettingsViewModel.swift`** and **`Services/NotificationService.swift`** — permission state and iOS scheduling. Tests use `NotificationProviding` instead of asking for real permissions.
+7. **`PlantoApp.swift`** — creates shared models and refreshes dates/notifications on launch, plant changes, foreground entry, and time changes.
 
-## Follow one complete action
+## The eight SwiftUI topics
 
-**Adding a plant:** tap **Set Plant Reminder** → set `editor` → SwiftUI presents the sheet → inputs change `draft` → Save trims and validates the name → `store.save(draft)` writes JSON → published plants change → the list redraws → notification dates refresh.
+| Topic | Code to look at |
+| --- | --- |
+| `VStack`, `HStack`, `ZStack` | Screen layout in `ContentView` and `ReminderEditor`; layered progress in `PlantTheme`. |
+| Custom navigation bar and sheet | `ContentView.sheet(item:)` and `ReminderEditor.navigationBar`. |
+| `TextField`, `Picker`, custom input rows | `ReminderEditor.nameField` and `pickerRow`. |
+| `List` and `ScrollView` | `ContentView.reminderList`, the welcome screen, and the editor. |
+| Custom animated `ProgressView` | `PlantTheme.swift` → `PlantProgressStyle`; respects Reduce Motion. |
+| Check/uncheck and swipe to delete | `ContentView.row` → `PlantsViewModel.toggleCompletion` / `delete`. |
+| Local notifications | `NotificationSettingsViewModel`, `NotificationService`, and `WateringSchedule`. |
+| Theming and dark mode | `PlantTheme` for shared styles; `PlantoApp` for the root appearance. |
 
-**Watering a plant:** tap its circle → `toggleCompletion` records today’s date → progress increases → the next due date advances by its watering interval → pending notifications refresh. Tap again to remove today’s completion. The same stored day is used for the row checks and daily progress.
+`PlantIllustration` draws the artwork with Canvas. It needs no view model because it has no plant data or save actions.
 
-**Canceling:** the form edits a local draft, so dismissing it does not change saved plants. Saving care details preserves the current watering history, even if the draft was opened earlier.
+## Understanding the bindings
 
-## How to practice
+- `ObservableObject` and `@Published` let SwiftUI observe model changes.
+- `@StateObject` keeps a view-owned model alive when SwiftUI redraws the view.
+- `@EnvironmentObject` reads the shared models created by `PlantoApp`.
+- `$model.draft.room` binds a picker to the editor's draft. `$viewModel.editor` lets sheet dismissal clear the selected sheet.
+- `@FocusState` tracks keyboard focus. `AnyLayout` changes the name field's layout for large text without replacing the focused field.
+- `@MainActor` keeps mutable screen state on the main actor. Notification calls use `async`/`await` so waiting for permission does not block the screen.
 
-Use Xcode previews or a simulator and make one small change at a time: adjust the header spacing, restyle the capsules, or change a picker row’s icon. Then run **⌘U**. The tests show small examples of checking date rules, persistence, and complete user flows.
+## Follow the actions
 
-The Foundation-only model/date tests can also run with `swift test` using Swift 5.9 or later. Building the screens and running the full app tests require Xcode and an iOS simulator.
+**Add and save:** `ContentViewModel.addPlant()` selects a new sheet. The editor creates a draft; inputs change that copy. Save trims and validates the name, writes through `PlantsViewModel`, and dismisses only on success. A failed write keeps the editor open and shows an error; a successful retry clears it. If another window deleted the plant, saving the old editor shows an error instead of bringing the plant back.
+
+**Cancel:** closing the editor discards its draft. Existing plants stay unchanged, and opening Add again starts with a fresh draft.
+
+**Water and undo:** `toggleCompletion` records today's watering date or removes today's completion. After storage succeeds, progress and list sections recalculate. An older care-edit draft keeps any watering changes made since it was opened.
+
+**Enable reminders:** permission is requested only after the button is tapped. When it returns, the model reads the current plants before scheduling, including edits or deletions made while the prompt was open. The service applies the newest schedule last if changes arrive during scheduling.
+
+## Tests to learn from
+
+`PlantReminderTests` checks watering intervals and daylight-saving changes. `PlantsViewModelTests` checks persistence, recovery, failed writes, history, and rollover. `ScreenViewModelTests` checks drafts, validation, window isolation, list state, and notification permissions using small test substitutes. `NotificationScheduleTests` checks the alert dates and 64-slot queue.
+
+Run `swift test` for those unit tests. The six tests in `PlantoUITests` exercise complete screen flows and need Xcode: run `./scripts/test-ios.sh` on a Mac. See the README for the remaining device checks, including real notification delivery and accessibility.

@@ -1,11 +1,10 @@
-import Combine
 import Foundation
 import UserNotifications
 
 @MainActor
-final class NotificationManager: ObservableObject {
-    @Published private(set) var status: UNAuthorizationStatus = .notDetermined
-    @Published var message: String?
+final class NotificationService: NotificationProviding {
+    private(set) var status: NotificationAuthorization = .notDetermined
+    var message: String?
 
     private let center: UNUserNotificationCenter
     private let identifierPrefix = "planto.watering."
@@ -13,7 +12,7 @@ final class NotificationManager: ObservableObject {
     private var isSyncing = false
 
     var isAuthorized: Bool {
-        status == .authorized || status == .provisional || status == .ephemeral
+        status == .authorized
     }
 
     init(center: UNUserNotificationCenter = .current()) {
@@ -21,10 +20,15 @@ final class NotificationManager: ObservableObject {
     }
 
     func refreshAuthorization() async {
-        status = await center.notificationSettings().authorizationStatus
+        let authorization = await center.notificationSettings().authorizationStatus
+        switch authorization {
+        case .authorized, .provisional, .ephemeral: status = .authorized
+        case .denied: status = .denied
+        default: status = .notDetermined
+        }
     }
 
-    /// Called only from the user's explicit Enable Notifications action.
+    // Ask for permission only when the user taps Enable Reminders.
     func requestAuthorization() async {
         do {
             _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
@@ -37,8 +41,7 @@ final class NotificationManager: ObservableObject {
         }
     }
 
-    /// Coalesces changes during an await and applies the newest snapshot last.
-    /// This avoids an older asynchronous schedule overwriting a recent edit or deletion.
+    // Edits can arrive while scheduling is suspended. Apply the newest list last.
     func sync(plants: [PlantReminder]) async {
         latestPlants = plants
         guard !isSyncing else { return }

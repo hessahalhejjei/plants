@@ -5,47 +5,47 @@ import UIKit
 @main
 @MainActor
 struct PlantoApp: App {
-    @StateObject private var store: PlantStore
-    @StateObject private var notifications = NotificationManager()
+    @StateObject private var plants: PlantsViewModel
+    @StateObject private var notifications: NotificationSettingsViewModel
     @Environment(\.scenePhase) private var scenePhase
     private let launchSettings: AppLaunchSettings
 
     init() {
         let settings = AppLaunchSettings()
         launchSettings = settings
-        _store = StateObject(wrappedValue: PlantStore(storageURL: settings.storageURL))
+        _plants = StateObject(wrappedValue: PlantsViewModel(storageURL: settings.storageURL, defaults: settings.defaults))
+        _notifications = StateObject(wrappedValue: NotificationSettingsViewModel(service: NotificationService(), isUITesting: settings.isUITesting))
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .defaultAppStorage(launchSettings.defaults)
-                .environmentObject(store)
+                .environmentObject(plants)
                 .environmentObject(notifications)
                 .preferredColorScheme(.dark)
                 .tint(Color(red: 0.12, green: 0.84, blue: 0.67))
                 .task {
                     guard !launchSettings.isUITesting else { return }
-                    await notifications.sync(plants: store.plants)
+                    await notifications.sync(plants: plants.plants)
                 }
-                .onChange(of: store.plants) { _, plants in
+                .onChange(of: plants.plants) { _, plants in
                     guard !launchSettings.isUITesting else { return }
                     Task { await notifications.sync(plants: plants) }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
-                    store.refreshDay()
+                    plants.refreshDay()
                     guard !launchSettings.isUITesting else { return }
                     Task {
-                        await notifications.sync(plants: store.plants)
+                        await notifications.sync(plants: plants.plants)
                     }
                 }
                 // iOS sends this at midnight and when its time or time zone changes.
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                     guard scenePhase == .active else { return }
-                    store.refreshDay()
+                    plants.refreshDay()
                     guard !launchSettings.isUITesting else { return }
-                    Task { await notifications.sync(plants: store.plants) }
+                    Task { await notifications.sync(plants: plants.plants) }
                 }
         }
     }

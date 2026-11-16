@@ -2,24 +2,13 @@ import SwiftUI
 
 @MainActor
 struct ReminderEditor: View {
-    @EnvironmentObject private var store: PlantStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState private var nameIsFocused: Bool
-    @State private var draft: PlantReminder
-    @State private var showingDeleteConfirmation = false
-    private let isEditing: Bool
+    @StateObject private var model: ReminderEditorViewModel
 
-    init(plant: PlantReminder?) {
-        _draft = State(initialValue: plant ?? PlantReminder(name: ""))
-        isEditing = plant != nil
-    }
-
-    private var trimmedName: String {
-        draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var validName: Bool {
-        !trimmedName.isEmpty && trimmedName.count <= 60
+    init(plant: PlantReminder?, plants: PlantsViewModel) {
+        _model = StateObject(wrappedValue: ReminderEditorViewModel(plant: plant, plants: plants))
     }
 
     var body: some View {
@@ -30,22 +19,22 @@ struct ReminderEditor: View {
                     nameField
 
                     VStack(spacing: 0) {
-                        pickerRow("Room", symbol: "location", selection: $draft.room, options: Room.allCases) { $0.displayName }
+                        pickerRow("Room", symbol: "location", selection: $model.draft.room, options: Room.allCases) { $0.displayName }
                         rowDivider
-                        pickerRow("Light", symbol: draft.light.symbolName, selection: $draft.light, options: LightLevel.allCases) { $0.displayName }
+                        pickerRow("Light", symbol: model.draft.light.symbolName, selection: $model.draft.light, options: LightLevel.allCases) { $0.displayName }
                     }
                     .background(PlantTheme.field, in: RoundedRectangle(cornerRadius: 22))
 
                     VStack(spacing: 0) {
-                        pickerRow("Watering Days", symbol: "drop", selection: $draft.frequency, options: WateringFrequency.allCases) { $0.displayName }
+                        pickerRow("Watering Days", symbol: "drop", selection: $model.draft.frequency, options: WateringFrequency.allCases) { $0.displayName }
                         rowDivider
-                        pickerRow("Water", symbol: "drop", selection: $draft.waterAmount, options: WaterAmount.allCases) { $0.displayName }
+                        pickerRow("Water", symbol: "drop", selection: $model.draft.waterAmount, options: WaterAmount.allCases) { $0.displayName }
                     }
                     .background(PlantTheme.field, in: RoundedRectangle(cornerRadius: 22))
 
-                    if isEditing {
+                    if model.isEditing {
                         Button("Delete Reminder", role: .destructive) {
-                            showingDeleteConfirmation = true
+                            model.showingDeleteConfirmation = true
                         }
                         .accessibilityIdentifier("reminder.delete")
                         .font(.subheadline)
@@ -61,22 +50,21 @@ struct ReminderEditor: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .background(PlantTheme.sheet)
-        .confirmationDialog("Delete \(trimmedName)?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+        .confirmationDialog("Delete \(model.trimmedName)?", isPresented: $model.showingDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete Reminder", role: .destructive) {
-                if store.delete(draft) { dismiss() }
+                if model.delete() { dismiss() }
             }
-            .accessibilityIdentifier("reminder.confirmDelete")
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will remove the plant and its scheduled reminders.")
         }
         .alert("Unable to save changes", isPresented: Binding(
-            get: { store.errorMessage != nil },
-            set: { if !$0 { store.errorMessage = nil } }
+            get: { model.errorMessage != nil },
+            set: { if !$0 { model.errorMessage = nil } }
         )) {
-            Button("OK", role: .cancel) { store.errorMessage = nil }
+            Button("OK", role: .cancel) { model.errorMessage = nil }
         } message: {
-            Text(store.errorMessage ?? "Please try again.")
+            Text(model.errorMessage ?? "Please try again.")
         }
     }
 
@@ -93,7 +81,7 @@ struct ReminderEditor: View {
             .accessibilityLabel("Cancel")
             .accessibilityIdentifier("reminder.cancel")
             Spacer(minLength: 8)
-            Text(isEditing ? "Edit Reminder" : "Set Reminder")
+            Text(model.isEditing ? "Edit Reminder" : "Set Reminder")
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
@@ -102,10 +90,10 @@ struct ReminderEditor: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
-                    .background(PlantTheme.accent.opacity(validName ? 0.5 : 0.15), in: Circle())
-                    .overlay(Circle().stroke(PlantTheme.accent.opacity(validName ? 0.7 : 0.15), lineWidth: 1))
+                    .background(PlantTheme.accent.opacity(model.validName ? 0.5 : 0.15), in: Circle())
+                    .overlay(Circle().stroke(PlantTheme.accent.opacity(model.validName ? 0.7 : 0.15), lineWidth: 1))
             }
-            .disabled(!validName)
+            .disabled(!model.validName)
             .accessibilityLabel("Save reminder")
             .accessibilityIdentifier("reminder.save")
         }
@@ -115,22 +103,21 @@ struct ReminderEditor: View {
     }
 
     private var nameField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
-                    Text("Plant Name").fixedSize()
-                    input
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Plant Name")
-                    input
-                }
+        // Change the layout without replacing the focused text field while typing.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 10))
+
+        return VStack(alignment: .leading, spacing: 8) {
+            layout {
+                Text("Plant Name").fixedSize(horizontal: false, vertical: true)
+                input
             }
             .font(.subheadline)
             .padding(.horizontal, 16)
             .padding(.vertical, 15)
             .background(PlantTheme.field, in: Capsule())
-            if trimmedName.count > 60 {
+            if model.trimmedName.count > 60 {
                 Text("Keep your plant’s name to 60 characters or fewer.")
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -140,7 +127,7 @@ struct ReminderEditor: View {
     }
 
     private var input: some View {
-        TextField("Pothos", text: $draft.name)
+        TextField("Pothos", text: $model.draft.name)
             .focused($nameIsFocused)
             .textInputAutocapitalization(.words)
             .autocorrectionDisabled()
@@ -148,7 +135,7 @@ struct ReminderEditor: View {
             .tint(PlantTheme.accent)
             .accessibilityLabel("Plant name")
             .accessibilityIdentifier("reminder.name")
-            .onSubmit { if validName { save() } }
+            .onSubmit { if model.validName { save() } }
     }
 
     private var rowDivider: some View {
@@ -206,8 +193,6 @@ struct ReminderEditor: View {
     }
 
     private func save() {
-        guard validName else { return }
-        draft.name = trimmedName
-        if store.save(draft) { dismiss() }
+        if model.save() { dismiss() }
     }
 }

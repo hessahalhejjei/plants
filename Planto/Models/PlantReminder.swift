@@ -14,8 +14,6 @@ enum Room: String, CaseIterable, Codable, Identifiable {
         case .bathroom: return "Bathroom"
         }
     }
-
-    var symbolName: String { "location" }
 }
 
 enum LightLevel: String, CaseIterable, Codable, Identifiable {
@@ -66,8 +64,6 @@ enum WateringFrequency: String, CaseIterable, Codable, Identifiable {
         case .biweekly: return 14
         }
     }
-
-    var symbolName: String { "drop" }
 }
 
 enum WaterAmount: String, CaseIterable, Codable, Identifiable {
@@ -83,8 +79,6 @@ enum WaterAmount: String, CaseIterable, Codable, Identifiable {
         case .extraLarge: return "200–300 ml"
         }
     }
-
-    var symbolName: String { "drop" }
 }
 
 struct PlantReminder: Codable, Identifiable, Equatable {

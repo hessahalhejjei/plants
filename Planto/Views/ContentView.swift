@@ -2,26 +2,10 @@ import SwiftUI
 
 @MainActor
 struct ContentView: View {
-    @EnvironmentObject private var store: PlantStore
-    @EnvironmentObject private var notifications: NotificationManager
+    @EnvironmentObject private var model: PlantsViewModel
+    @EnvironmentObject private var notifications: NotificationSettingsViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage("hasCreatedPlant") private var hasCreatedPlant = false
-    @State private var editor: ReminderSheet?
-    @State private var showingNotifications = false
-    @State private var showingCompletedPlants = false
-
-    private var todayPlants: [PlantReminder] {
-        store.plants.filter {
-            $0.isDue(on: store.currentDay) || $0.isCompleted(on: store.currentDay)
-        }
-    }
-
-    private var upcomingPlants: [PlantReminder] {
-        store.plants.filter {
-            !$0.isDue(on: store.currentDay) && !$0.isCompleted(on: store.currentDay)
-        }
-            .sorted { $0.nextWateringDate() < $1.nextWateringDate() }
-    }
+    @StateObject private var viewModel = ContentViewModel()
 
     private var careAnimation: Animation? {
         reduceMotion ? nil : .easeInOut(duration: 0.25)
@@ -32,9 +16,9 @@ struct ContentView: View {
             header
             Divider().overlay(.white.opacity(0.07))
 
-            if store.hasPlants {
+            if model.hasPlants {
                 reminderList
-            } else if hasCreatedPlant {
+            } else if model.hasCreatedPlant {
                 Text("No reminders set yet…")
                     .accessibilityIdentifier("reminders.empty")
                     .font(.subheadline)
@@ -46,34 +30,30 @@ struct ContentView: View {
         }
         .background(PlantTheme.background)
         .overlay(alignment: .bottomTrailing) {
-            if store.hasPlants || hasCreatedPlant {
+            if model.hasPlants || model.hasCreatedPlant {
                 addButton.padding(24)
             }
         }
-        .sheet(item: $editor) { sheet in
-            ReminderEditor(plant: sheet.plant)
+        .sheet(item: $viewModel.editor) { sheet in
+            ReminderEditor(plant: sheet.plant, plants: model)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $showingNotifications) {
+        .sheet(isPresented: $viewModel.showingNotifications) {
             NotificationSettingsView()
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
         .alert("Your reminders need attention", isPresented: Binding(
-            get: { store.errorMessage != nil && editor == nil },
-            set: { if !$0 { store.errorMessage = nil } }
+            get: { model.errorMessage != nil && viewModel.editor == nil },
+            set: { if !$0 { model.errorMessage = nil } }
         )) {
-            Button("OK", role: .cancel) { store.errorMessage = nil }
+            Button("OK", role: .cancel) { model.errorMessage = nil }
         } message: {
-            Text(store.errorMessage ?? "Please try again.")
+            Text(model.errorMessage ?? "Please try again.")
         }
-        .onChange(of: store.plants) { _, plants in
-            if !plants.isEmpty { hasCreatedPlant = true }
-            if !store.allDoneToday { showingCompletedPlants = false }
-        }
-        .onAppear {
-            if store.hasPlants { hasCreatedPlant = true }
+        .onChange(of: model.allDoneToday) { _, allDone in
+            viewModel.updateCompletionState(allDone: allDone)
         }
     }
 
@@ -84,7 +64,7 @@ struct ContentView: View {
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
             Button {
-                showingNotifications = true
+                viewModel.showingNotifications = true
             } label: {
                 Image(systemName: notifications.isAuthorized ? "bell.badge" : "bell")
                     .font(.body)
@@ -116,7 +96,7 @@ struct ContentView: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Set Plant Reminder") {
-                    editor = ReminderSheet(plant: nil)
+                    viewModel.addPlant()
                 }
                 .accessibilityIdentifier("welcome.start")
                 .buttonStyle(PlantPrimaryButton())
@@ -132,7 +112,7 @@ struct ContentView: View {
 
     private var reminderList: some View {
         List {
-            if store.allDoneToday {
+            if model.allDoneToday {
                 Section {
                     VStack(spacing: 12) {
                         PlantIllustration(isCelebrating: true)
@@ -144,8 +124,8 @@ struct ContentView: View {
                         Text("All reminders completed")
                             .font(.subheadline)
                             .foregroundStyle(PlantTheme.secondary)
-                        Button(showingCompletedPlants ? "Hide plants" : "View my plants") {
-                            withAnimation(careAnimation) { showingCompletedPlants.toggle() }
+                        Button(viewModel.showingCompletedPlants ? "Hide plants" : "View my plants") {
+                            withAnimation(careAnimation) { viewModel.toggleCompletedPlants() }
                         }
                         .accessibilityIdentifier("reminders.showPlants")
                         .font(.subheadline.weight(.medium))
@@ -165,10 +145,10 @@ struct ContentView: View {
                 .listRowBackground(Color.clear)
             }
 
-            if !store.allDoneToday || showingCompletedPlants {
-                if !todayPlants.isEmpty {
+            if !model.allDoneToday || viewModel.showingCompletedPlants {
+                if !model.todayPlants.isEmpty {
                     Section {
-                        ForEach(todayPlants) { plant in
+                        ForEach(model.todayPlants) { plant in
                             row(for: plant)
                         }
                     } header: {
@@ -178,9 +158,9 @@ struct ContentView: View {
                     .listRowBackground(Color.clear)
                 }
 
-                if !upcomingPlants.isEmpty {
+                if !model.upcomingPlants.isEmpty {
                     Section {
-                        ForEach(upcomingPlants) { plant in
+                        ForEach(model.upcomingPlants) { plant in
                             row(for: plant)
                         }
                     } header: {
@@ -199,51 +179,45 @@ struct ContentView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .animation(careAnimation, value: store.completedTodayCount)
+        .animation(careAnimation, value: model.completedTodayCount)
     }
 
     private var progressHeader: some View {
         VStack(spacing: 12) {
-            Text(progressMessage)
+            Text(model.progressMessage)
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
-            if store.totalTodayCount > 0 {
+            if model.totalTodayCount > 0 {
                 ProgressView(
-                    value: Double(store.completedTodayCount),
-                    total: Double(max(1, store.totalTodayCount))
+                    value: Double(model.completedTodayCount),
+                    total: Double(max(1, model.totalTodayCount))
                 )
                 .progressViewStyle(PlantProgressStyle())
                 .accessibilityIdentifier("reminders.progress")
                 .accessibilityLabel("Today's watering progress")
-                .accessibilityValue("\(store.completedTodayCount) of \(store.totalTodayCount) complete")
+                .accessibilityValue("\(model.completedTodayCount) of \(model.totalTodayCount) complete")
             }
         }
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity)
     }
 
-    private var progressMessage: String {
-        if store.totalTodayCount == 0 { return "Your plants are all set for today 🌿" }
-        if store.completedTodayCount == 0 { return "Your plants are waiting for a sip 💦" }
-        return "\(store.completedTodayCount) of \(store.totalTodayCount) plants feel loved today ✨"
-    }
-
     private func row(for plant: PlantReminder) -> some View {
-        PlantReminderRow(plant: plant, day: store.currentDay) {
+        PlantReminderRow(plant: plant, day: model.currentDay) {
             withAnimation(careAnimation) {
-                store.toggleCompletion(for: plant)
+                _ = model.toggleCompletion(for: plant)
             }
         } onEdit: {
-            editor = ReminderSheet(plant: plant)
+            viewModel.editPlant(plant)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
-                withAnimation(careAnimation) { store.delete(plant) }
+                withAnimation(careAnimation) { _ = model.delete(plant) }
             } label: {
                 Label("Delete", systemImage: "trash")
             }
             Button {
-                editor = ReminderSheet(plant: plant)
+                viewModel.editPlant(plant)
             } label: {
                 Label("Edit", systemImage: "pencil")
             }
@@ -255,7 +229,7 @@ struct ContentView: View {
 
     private var addButton: some View {
         Button {
-            editor = ReminderSheet(plant: nil)
+            viewModel.addPlant()
         } label: {
             Image(systemName: "plus")
                 .font(.title2.weight(.medium))
@@ -270,11 +244,6 @@ struct ContentView: View {
     }
 }
 
-private struct ReminderSheet: Identifiable {
-    let id = UUID()
-    let plant: PlantReminder?
-}
-
 private struct PlantReminderRow: View {
     let plant: PlantReminder
     let day: Date
@@ -282,29 +251,22 @@ private struct PlantReminderRow: View {
     let onEdit: () -> Void
     @ScaledMetric(relativeTo: .body) private var checkSize: CGFloat = 24
 
-    private var isComplete: Bool { plant.isCompleted(on: day) }
-    private var canComplete: Bool { plant.isDue(on: day) || isComplete }
-
-    private var wateringStatus: String {
-        if isComplete { return "Watered today" }
-        if canComplete { return "Due today" }
-        return nextWateringDescription
-    }
+    private var model: PlantRowViewModel { PlantRowViewModel(plant: plant, day: day) }
 
     var body: some View {
         HStack(spacing: 12) {
             Button(action: onToggle) {
-                Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
+                Image(systemName: model.isComplete ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: checkSize, weight: .light))
-                    .foregroundStyle(isComplete ? PlantTheme.accent : PlantTheme.secondary)
+                    .foregroundStyle(model.isComplete ? PlantTheme.accent : PlantTheme.secondary)
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(!canComplete)
-            .opacity(canComplete ? 1 : 0.4)
-            .accessibilityLabel(isComplete ? "Mark \(plant.name) as not watered" : "Mark \(plant.name) as watered")
-            .accessibilityValue(wateringStatus)
+            .disabled(!model.canComplete)
+            .opacity(model.canComplete ? 1 : 0.4)
+            .accessibilityLabel(model.isComplete ? "Mark \(plant.name) as not watered" : "Mark \(plant.name) as watered")
+            .accessibilityValue(model.wateringStatus)
             .accessibilityIdentifier("plant.toggle.\(plant.name)")
 
             Button(action: onEdit) {
@@ -314,14 +276,14 @@ private struct PlantReminderRow: View {
                         .foregroundStyle(PlantTheme.secondary)
                     Text(plant.name)
                         .font(.title3)
-                        .foregroundStyle(isComplete ? PlantTheme.secondary : .white)
+                        .foregroundStyle(model.isComplete ? PlantTheme.secondary : .white)
                         .multilineTextAlignment(.leading)
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: 8) { careBadges }
                         VStack(alignment: .leading, spacing: 6) { careBadges }
                     }
-                    if !canComplete {
-                        Text(nextWateringDescription)
+                    if !model.canComplete {
+                        Text(model.nextWateringDescription)
                             .font(.caption)
                             .foregroundStyle(PlantTheme.secondary)
                     }
@@ -331,7 +293,7 @@ private struct PlantReminderRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Edit \(plant.name), in \(plant.room.displayName), \(plant.light.displayName), \(plant.waterAmount.displayName), \(plant.frequency.displayName)")
-            .accessibilityValue(wateringStatus)
+            .accessibilityValue(model.wateringStatus)
             .accessibilityIdentifier("plant.edit.\(plant.name)")
         }
     }
@@ -343,16 +305,6 @@ private struct PlantReminderRow: View {
         Label(plant.waterAmount.displayName, systemImage: "drop")
             .foregroundStyle(Color(red: 0.66, green: 0.83, blue: 0.90))
             .careBadge()
-    }
-
-    private var nextWateringDescription: String {
-        let date = plant.nextWateringDate()
-        let calendar = Calendar.current
-        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: day),
-           calendar.isDate(date, inSameDayAs: tomorrow) {
-            return "Water tomorrow"
-        }
-        return "Water \(date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
     }
 }
 

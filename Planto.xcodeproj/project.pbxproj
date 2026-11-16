@@ -5,6 +5,79 @@
 	};
 	"objectVersion" = 56;
 	"objects" = {
+		"EB5279EEA2F14BB0B7D95C8F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "ContentViewModel.swift";
+			"sourceTree" = "<group>";
+		};
+		"ED16593B08E34BD4B3B95382" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "EB5279EEA2F14BB0B7D95C8F";
+		};
+		"D8DD3B20923BFE391AFE5B28" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "PlantsViewModel.swift";
+			"sourceTree" = "<group>";
+		};
+		"59F7D1584ED2D555A8F69AB7" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D8DD3B20923BFE391AFE5B28";
+		};
+		"7419A5F183FEDDD5D47002DB" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "ReminderEditorViewModel.swift";
+			"sourceTree" = "<group>";
+		};
+		"128F5B318349D65AC0AB499F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "7419A5F183FEDDD5D47002DB";
+		};
+		"D89A8E3F4937E9CAAE280C4F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "PlantRowViewModel.swift";
+			"sourceTree" = "<group>";
+		};
+		"B4ABEFFD77816AC5731F14CD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D89A8E3F4937E9CAAE280C4F";
+		};
+		"154871595339B5C2ECE5DF82" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "NotificationSettingsViewModel.swift";
+			"sourceTree" = "<group>";
+		};
+		"123251C5E6AC9570A3FD15F0" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "154871595339B5C2ECE5DF82";
+		};
+		"F47FD7AF5B7FA418B5317EE3" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "ScreenViewModelTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"5BCDF062139CD60BA82A843F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "F47FD7AF5B7FA418B5317EE3";
+		};
+		"F4E0CF02F80F307E5C05980D" = {
+			"isa" = "PBXGroup";
+			"children" = (
+				"EB5279EEA2F14BB0B7D95C8F",
+				"D8DD3B20923BFE391AFE5B28",
+				"7419A5F183FEDDD5D47002DB",
+				"D89A8E3F4937E9CAAE280C4F",
+				"154871595339B5C2ECE5DF82",
+			);
+			"path" = "ViewModels";
+			"sourceTree" = "<group>";
+		};
+
 		"21593866E5CAA3762E4C43CC" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -26,13 +99,13 @@
 		"11A5B24DE6C5925063180302" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "NotificationManager.swift";
+			"path" = "NotificationService.swift";
 			"sourceTree" = "<group>";
 		};
 		"8BC7FD9E7034B19EC499E9E3" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "PlantStore.swift";
+			"path" = "JSONPlantStorage.swift";
 			"sourceTree" = "<group>";
 		};
 		"9A5A17E9F43BC5D970B4AD6F" = {
@@ -80,7 +153,7 @@
 		"6E37D415F49CFA75CD8B8D49" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "PlantStoreTests.swift";
+			"path" = "PlantsViewModelTests.swift";
 			"sourceTree" = "<group>";
 		};
 		"369BE7F07ADECC8BD916E905" = {
@@ -219,6 +292,7 @@
 		"CF8D0BD4B75E8C2C174692A5" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"F4E0CF02F80F307E5C05980D",
 				"2EFFBF47609089F4285219B8",
 				"9B21A922C1487E69963B16A2",
 				"A31D3374946AEC6B0D3886C2",
@@ -232,6 +306,7 @@
 		"EEFE21A1443933CA4DE017DA" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"F47FD7AF5B7FA418B5317EE3",
 				"211FF307DCC4F455992BF3C4",
 				"D60C39EF1B295C2F5CE6A544",
 				"6E37D415F49CFA75CD8B8D49",
@@ -271,6 +346,11 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
+				"ED16593B08E34BD4B3B95382",
+				"123251C5E6AC9570A3FD15F0",
+				"B4ABEFFD77816AC5731F14CD",
+				"128F5B318349D65AC0AB499F",
+				"59F7D1584ED2D555A8F69AB7",
 				"695BB59FBBB3BF30E8C77317",
 				"4B1EDA249D3E2107279311C5",
 				"C490935C71C007118409319D",
@@ -304,6 +384,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
+				"5BCDF062139CD60BA82A843F",
 				"8C48BCCD854CF1C156755AB6",
 				"FF304DF1AA8A7CDDA407AAE3",
 				"434E34F862B0EC20E0C45602",
