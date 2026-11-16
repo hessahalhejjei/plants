@@ -69,4 +69,33 @@ Start with `PlantReminder`, `PlantsViewModel`, and `ReminderEditor`. They show t
 
 `PlantReminderTests` checks watering intervals and daylight-saving changes. `PlantsViewModelTests` checks persistence, recovery, failed writes, history, and rollover. `ScreenViewModelTests` checks drafts, validation, window isolation, list state, and notification permissions using small test substitutes. `NotificationScheduleTests` checks the alert dates and 64-slot queue.
 
-Run `swift test` for those unit tests. The six tests in `PlantoUITests` exercise complete screen flows and need Xcode: run `./scripts/test-ios.sh` on a Mac. See the README for the remaining device checks, including real notification delivery and accessibility.
+Run `swift test` for those unit tests. The six tests in `PlantoUITests` exercise complete screen flows and need Xcode: run `./scripts/test-ios.sh` on a Mac. Use the device checklist below to check notification delivery and accessibility.
+
+## Running and checking the app
+
+Open `Planto.xcodeproj` in Xcode, select the **Planto** scheme and an iPhone simulator, then press **⌘R**. Opening `Package.swift` opens the core test package instead of the app. For a physical iPhone, select your development team under **Signing & Capabilities**.
+
+The app runs on iOS 17+. Xcode 26+ and iOS 26+ enable native Liquid Glass controls. Older Xcode versions build the solid-control fallback. Glass stays on action/navigation controls; Reduce Transparency uses solid controls and Reduce Motion disables progress/list animations.
+
+Press **⌘U** or run `./scripts/test-ios.sh` on a Mac for app unit and UI tests. The script chooses an available iPhone simulator; `SIMULATOR_ID` can select a particular device. Run `swift test` with Swift 5.9+ for the portable core tests. Linux uses pinned OpenCombine 0.14.0; the iOS app uses Apple's Combine.
+
+Latest local checks: **42 core unit tests passed on Linux**. The full iOS build, native glass rendering, smoothness, and six UI tests still need Xcode validation. GitHub Actions runs the simulator suite on push; its result needs checking separately.
+
+## Storage and notification details
+
+Plants are saved to `Application Support/Planto/reminders.json` with atomic writes. Unreadable files are backed up before replacement; a failed save leaves the current list unchanged.
+
+New plants are due immediately. Watering advances the next due day using local calendar days; upcoming plants cannot be checked early. The app refreshes dates on launch, foreground entry, and time changes.
+
+Notifications require explicit permission through **••• → Notification settings → Enable Reminders**. Alerts are scheduled at 9:00 AM in the device's local time zone. If that time has passed for an overdue plant, its first alert is tomorrow. Watering, editing, and deleting refresh the schedule.
+
+iOS allows 64 pending notifications. Reopen Planto regularly to refill the queue. Focus and system settings can affect delivery.
+
+## Device checklist
+
+1. Add a plant, change each care field, save, and relaunch to check persistence.
+2. Add another plant. Check one for partial progress, then both for **All Done!**. Choose **••• → View my plants** and undo a completion.
+3. Water a weekly plant and check that it appears under **Upcoming** the next day.
+4. Cancel an edit, confirm a deletion in the editor, and swipe another plant to delete. Check the empty state and add button.
+5. Check notification permission, 9:00 AM delivery, and cancellation after editing/deleting on a device.
+6. Check large text, VoiceOver, Reduce Motion, Reduce Transparency, keyboard focus, and sheet layout on iPhone and iPad. Compare the glass controls on iOS 26 with the solid fallback on iOS 17–18.
