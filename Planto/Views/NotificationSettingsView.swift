@@ -46,6 +46,9 @@ struct NotificationSettingsView: View {
                     }
                     .buttonStyle(PlantPrimaryButton())
                     .disabled(notifications.requesting)
+                    .accessibilityLabel("Enable Reminders")
+                    .accessibilityValue(notifications.requesting ? "Requesting permission" : "")
+                    .accessibilityIdentifier("notifications.enable")
                 } else {
                     Button("Open Notification Settings") {
                         guard notifications.canOpenSettings else { return }

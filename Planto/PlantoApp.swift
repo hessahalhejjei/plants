@@ -28,9 +28,9 @@ struct PlantoApp: App {
                     guard !launchSettings.isUITesting else { return }
                     await notifications.sync(plants: plants.plants)
                 }
-                .onChange(of: plants.plants) { _, plants in
+                .onChange(of: plants.plants) { _, _ in
                     guard !launchSettings.isUITesting else { return }
-                    Task { await notifications.sync(plants: plants) }
+                    Task { await notifications.sync(plants: plants.plants) }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }

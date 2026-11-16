@@ -25,9 +25,11 @@ final class PlantoUITests: XCTestCase {
         app.buttons["reminder.cancel"].tap()
         XCTAssertTrue(app.staticTexts["welcome.title"].waitForExistence(timeout: 5))
 
-        app.buttons["notifications.settings"].tap()
+        chooseMoreOption("notifications.settings", in: app)
         XCTAssertTrue(app.staticTexts["A little nudge to grow"].waitForExistence(timeout: 5))
         let reminderNote = app.staticTexts["Open Planto regularly to keep future reminders up to date."]
+        XCTAssertTrue(reminderNote.exists)
+        app.buttons["notifications.enable"].tap()
         XCTAssertTrue(reminderNote.exists)
         app.buttons["Close notification settings"].tap()
         XCTAssertTrue(app.staticTexts["welcome.title"].waitForExistence(timeout: 5))
@@ -87,18 +89,28 @@ final class PlantoUITests: XCTestCase {
         addPlant("Pothos", in: app)
         addPlant("Spider", in: app)
         app.buttons["plant.toggle.Pothos"].tap()
-        XCTAssertTrue(app.staticTexts["1 of 2 plants feel loved today ✨"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1 of your plants feel loved today!✨"].waitForExistence(timeout: 5))
         app.buttons["plant.toggle.Spider"].tap()
         XCTAssertTrue(app.staticTexts["reminders.allDone"].waitForExistence(timeout: 5))
 
-        app.buttons["reminders.showPlants"].tap()
+        chooseMoreOption("reminders.showPlants", in: app)
         let completed = app.buttons["plant.toggle.Pothos"]
-        if !completed.isHittable { app.swipeUp() }
         XCTAssertTrue(completed.waitForExistence(timeout: 5))
+        if !completed.isHittable { app.swipeUp() }
         XCTAssertEqual(completed.value as? String, "Watered today")
+
+        chooseMoreOption("reminders.showPlants", in: app)
+        let hidden = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: completed
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [hidden], timeout: 5), .completed)
+        XCTAssertTrue(app.staticTexts["reminders.allDone"].exists)
+        chooseMoreOption("reminders.showPlants", in: app)
+        XCTAssertTrue(completed.waitForExistence(timeout: 5))
+        if !completed.isHittable { app.swipeUp() }
         completed.tap()
         XCTAssertFalse(app.staticTexts["reminders.allDone"].exists)
-        XCTAssertTrue(app.staticTexts["1 of 2 plants feel loved today ✨"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1 of your plants feel loved today!✨"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons["plant.toggle.Pothos"].value as? String, "Due today")
     }
 
@@ -119,7 +131,24 @@ final class PlantoUITests: XCTestCase {
             XCTFail("The delete confirmation dialog did not appear.")
             return
         }
-        let confirmation = dialog.buttons["Delete Reminder"].firstMatch
+        let cancel = dialog.buttons["Cancel"].firstMatch
+        if cancel.exists {
+            cancel.tap()
+        } else {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.1)).tap()
+        }
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: dialog
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+        XCTAssertTrue(app.buttons["reminder.save"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.textFields["reminder.name"].firstMatch.value as? String, "Fern")
+        app.buttons["reminder.delete"].tap()
+        guard let reopenedDialog = dialogs.first(where: { $0.waitForExistence(timeout: 2) }) else {
+            XCTFail("The delete confirmation dialog did not reopen.")
+            return
+        }
+        let confirmation = reopenedDialog.buttons["Delete Reminder"].firstMatch
         XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
         confirmation.tap()
         XCTAssertTrue(app.staticTexts["reminders.empty"].waitForExistence(timeout: 5))
@@ -196,6 +225,14 @@ final class PlantoUITests: XCTestCase {
         )
         XCTAssertEqual(XCTWaiter.wait(for: [updated], timeout: 5), .completed)
         XCTAssertEqual(element.isEnabled, enabled)
+    }
+
+    @MainActor
+    private func chooseMoreOption(_ identifier: String, in app: XCUIApplication) {
+        app.buttons["reminders.menu"].tap()
+        let action = app.buttons[identifier]
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        action.tap()
     }
 
     @MainActor

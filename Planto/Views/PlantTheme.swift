@@ -29,21 +29,63 @@ struct PlantProgressStyle: ProgressViewStyle {
 }
 
 struct PlantPrimaryButton: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
+            .font(.subheadline.weight(.medium))
             .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Capsule())
+            .modifier(PlantControlSurface(shape: Capsule(), isProminent: true))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.4)
+    }
+}
+
+struct PlantRoundButton: ButtonStyle {
+    var isProminent = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.medium))
+            .foregroundStyle(.white)
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+            .modifier(PlantControlSurface(shape: Circle(), isProminent: isProminent))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.4)
+    }
+}
+
+// Glass belongs on controls. Form fields, list rows, and backgrounds stay opaque.
+private struct PlantControlSurface<ControlShape: Shape>: ViewModifier {
+    let shape: ControlShape
+    let isProminent: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *), !reduceTransparency {
+            if isProminent {
+                content.glassEffect(.regular.tint(PlantTheme.accent).interactive(), in: shape)
+            } else {
+                content.glassEffect(.regular.interactive(), in: shape)
+            }
+        } else {
+            solidControl(content)
+        }
+        #else
+        solidControl(content)
+        #endif
+    }
+
+    private func solidControl(_ content: Content) -> some View {
+        content
             .background(
-                LinearGradient(
-                    colors: [PlantTheme.accent.opacity(0.55), PlantTheme.accent.opacity(0.35)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                ),
-                in: Capsule()
+                isProminent ? Color(red: 0.12, green: 0.44, blue: 0.36) : PlantTheme.field,
+                in: shape
             )
-            .overlay(Capsule().stroke(PlantTheme.accent.opacity(0.65), lineWidth: 1))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .overlay(shape.stroke(Color.white.opacity(0.2), lineWidth: 1))
     }
 }

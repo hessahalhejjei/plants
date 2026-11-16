@@ -17,7 +17,7 @@ The example has four Swift files: `Cake.swift`, `CakeViewModel.swift`, `ContentV
 | `addCake()` | Editor `save()` calls `PlantsViewModel.save(_:)`. |
 | View-owned `@StateObject` | Each content view owns its screen model; each editor owns its draft model. |
 
-Planto uses separate models because it also supports persistence, editing, watering history, and notification permissions. `PlantsViewModel` is shared by the app. `ContentViewModel` belongs to one window, so opening a sheet does not open it in other windows.
+Planto uses separate models because it also supports persistence, editing, watering history, and notification permissions. `PlantsViewModel` is shared by the app. `ContentViewModel` belongs to one window, so opening a sheet does not open it in other windows. The menu also exposes completed plants without adding a permanent button to the All Done screen.
 
 ## Files to read
 
@@ -40,9 +40,9 @@ Planto uses separate models because it also supports persistence, editing, water
 | Custom animated `ProgressView` | `PlantTheme.swift` → `PlantProgressStyle`; respects Reduce Motion. |
 | Check/uncheck and swipe to delete | `ContentView.row` → `PlantsViewModel.toggleCompletion` / `delete`. |
 | Local notifications | `NotificationSettingsViewModel`, `NotificationService`, and `WateringSchedule`. |
-| Theming and dark mode | `PlantTheme` for shared styles; `PlantoApp` for the root appearance. |
+| Theming and dark mode | `PlantTheme` for shared styles; `PlantoApp` for the root appearance; native glass is limited to action/navigation controls. |
 
-`PlantIllustration` draws the artwork with Canvas. It needs no view model because it has no plant data or save actions.
+`PlantIllustration` displays the supplied `PlantWelcome` or `PlantWink` artwork from the asset catalog. The originals are vector PDFs, so they stay sharp as the screen scales. It needs no view model because it has no plant data or save actions.
 
 ## Understanding the bindings
 
@@ -61,7 +61,7 @@ Planto uses separate models because it also supports persistence, editing, water
 
 **Water and undo:** `toggleCompletion` records today's watering date or removes today's completion. After storage succeeds, progress and list sections recalculate. An older care-edit draft keeps any watering changes made since it was opened.
 
-**Enable reminders:** permission is requested only after the button is tapped. When it returns, the model reads the current plants before scheduling, including edits or deletions made while the prompt was open. The service applies the newest schedule last if changes arrive during scheduling.
+**Enable reminders:** open **••• → Notification settings**. Permission is requested only after the button is tapped. When it returns, the model reads the current plants before scheduling, including edits or deletions made while the prompt was open. The service applies the newest schedule last if changes arrive during scheduling.
 
 ## Tests to learn from
 

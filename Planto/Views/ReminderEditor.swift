@@ -19,7 +19,7 @@ struct ReminderEditor: View {
                     nameField
 
                     VStack(spacing: 0) {
-                        pickerRow("Room", symbol: "location", selection: $model.draft.room, options: Room.allCases) { $0.displayName }
+                        pickerRow("Room", symbol: "paperplane", selection: $model.draft.room, options: Room.allCases) { $0.displayName }
                         rowDivider
                         pickerRow("Light", symbol: model.draft.light.symbolName, selection: $model.draft.light, options: LightLevel.allCases) { $0.displayName }
                     }
@@ -72,27 +72,19 @@ struct ReminderEditor: View {
         HStack {
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(.white.opacity(0.08), in: Circle())
-                    .overlay(Circle().stroke(.white.opacity(0.15), lineWidth: 1))
             }
+            .buttonStyle(PlantRoundButton())
             .accessibilityLabel("Cancel")
             .accessibilityIdentifier("reminder.cancel")
             Spacer(minLength: 8)
-            Text(model.isEditing ? "Edit Reminder" : "Set Reminder")
+            Text("Set Reminder")
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
             Button(action: save) {
                 Image(systemName: "checkmark")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(PlantTheme.accent.opacity(model.validName ? 0.5 : 0.15), in: Circle())
-                    .overlay(Circle().stroke(PlantTheme.accent.opacity(model.validName ? 0.7 : 0.15), lineWidth: 1))
             }
+            .buttonStyle(PlantRoundButton(isProminent: true))
             .disabled(!model.validName)
             .accessibilityLabel("Save reminder")
             .accessibilityIdentifier("reminder.save")

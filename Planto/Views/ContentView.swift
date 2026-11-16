@@ -3,7 +3,6 @@ import SwiftUI
 @MainActor
 struct ContentView: View {
     @EnvironmentObject private var model: PlantsViewModel
-    @EnvironmentObject private var notifications: NotificationSettingsViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var viewModel = ContentViewModel()
 
@@ -17,7 +16,11 @@ struct ContentView: View {
             Divider().overlay(.white.opacity(0.07))
 
             if model.hasPlants {
-                reminderList
+                if model.allDoneToday && !viewModel.showingCompletedPlants {
+                    celebration
+                } else {
+                    reminderList
+                }
             } else if model.hasCreatedPlant {
                 Text("No reminders set yet…")
                     .accessibilityIdentifier("reminders.empty")
@@ -37,7 +40,7 @@ struct ContentView: View {
         .sheet(item: $viewModel.editor) { sheet in
             ReminderEditor(plant: sheet.plant, plants: model)
                 .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+                .presentationDragIndicator(.hidden)
         }
         .sheet(isPresented: $viewModel.showingNotifications) {
             NotificationSettingsView()
@@ -63,17 +66,23 @@ struct ContentView: View {
                 .font(.title2.bold())
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
-            Button {
-                viewModel.showingNotifications = true
+            Menu {
+                if model.allDoneToday {
+                    Button(viewModel.showingCompletedPlants ? "Return to All Done" : "View my plants") {
+                        withAnimation(careAnimation) { viewModel.toggleCompletedPlants() }
+                    }
+                    .accessibilityIdentifier("reminders.showPlants")
+                }
+                Button("Notification settings", systemImage: "bell") {
+                    viewModel.showingNotifications = true
+                }
+                .accessibilityIdentifier("notifications.settings")
             } label: {
-                Image(systemName: notifications.isAuthorized ? "bell.badge" : "bell")
-                    .font(.body)
-                    .foregroundStyle(PlantTheme.secondary)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+                Image(systemName: "ellipsis")
             }
-            .accessibilityLabel("Notification settings")
-            .accessibilityIdentifier("notifications.settings")
+            .buttonStyle(PlantRoundButton())
+            .accessibilityLabel("More options")
+            .accessibilityIdentifier("reminders.menu")
         }
         .padding(.leading, 20)
         .padding(.trailing, 8)
@@ -82,16 +91,15 @@ struct ContentView: View {
     }
 
     private var welcome: some View {
-        ScrollView {
+        centeredContent {
             VStack(spacing: 18) {
-                PlantIllustration(isCelebrating: false)
+                PlantIllustration()
                     .frame(width: 190, height: 190)
-                    .accessibilityHidden(true)
                 Text("Start your plant journey!")
                     .accessibilityIdentifier("welcome.title")
                     .font(.title3.bold())
-                Text("Now all your plants will be in one place,\nand we’ll help you take care of them. 🌿")
-                    .font(.subheadline)
+                Text("Now all your plants will be in one place and\nwe will help you take care of them! 🪴")
+                    .font(.footnote)
                     .foregroundStyle(PlantTheme.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -100,75 +108,66 @@ struct ContentView: View {
                 }
                 .accessibilityIdentifier("welcome.start")
                 .buttonStyle(PlantPrimaryButton())
-                .padding(.top, 36)
-                .frame(maxWidth: 300)
+                .padding(.top, 64)
+                .frame(maxWidth: 260)
             }
-            .padding(.horizontal, 28)
-            .padding(.vertical, 48)
-            .frame(maxWidth: .infinity)
         }
-        .defaultScrollAnchor(.center)
+    }
+
+    private var celebration: some View {
+        centeredContent {
+            VStack(spacing: 12) {
+                PlantIllustration(isCelebrating: true)
+                    .frame(width: 190, height: 190)
+                Text("All Done! 🎉")
+                    .accessibilityIdentifier("reminders.allDone")
+                    .font(.title3.bold())
+                Text("All Reminders Completed")
+                    .font(.footnote)
+                    .foregroundStyle(PlantTheme.secondary)
+            }
+        }
+    }
+
+    private func centeredContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        let screen = content()
+        return GeometryReader { geometry in
+            ScrollView {
+                screen
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 32)
+                    .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+            }
+        }
     }
 
     private var reminderList: some View {
         List {
-            if model.allDoneToday {
-                Section {
-                    VStack(spacing: 12) {
-                        PlantIllustration(isCelebrating: true)
-                            .frame(width: 180, height: 180)
-                            .accessibilityHidden(true)
-                        Text("All Done! 🎉")
-                            .accessibilityIdentifier("reminders.allDone")
-                            .font(.title3.bold())
-                        Text("All reminders completed")
-                            .font(.subheadline)
-                            .foregroundStyle(PlantTheme.secondary)
-                        Button(viewModel.showingCompletedPlants ? "Hide plants" : "View my plants") {
-                            withAnimation(careAnimation) { viewModel.toggleCompletedPlants() }
-                        }
-                        .accessibilityIdentifier("reminders.showPlants")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(PlantTheme.accent)
-                        .padding(.top, 12)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 42)
+            Section {
+                progressHeader
                     .listRowSeparator(.hidden)
-                }
-                .listRowBackground(Color.clear)
-            } else {
+            }
+            .listRowBackground(Color.clear)
+
+            if !model.todayPlants.isEmpty {
                 Section {
-                    progressHeader
-                        .listRowSeparator(.hidden)
+                    ForEach(model.todayPlants) { plant in
+                        row(for: plant)
+                    }
                 }
                 .listRowBackground(Color.clear)
             }
 
-            if !model.allDoneToday || viewModel.showingCompletedPlants {
-                if !model.todayPlants.isEmpty {
-                    Section {
-                        ForEach(model.todayPlants) { plant in
-                            row(for: plant)
-                        }
-                    } header: {
-                        Text("Today")
-                            .textCase(nil)
+            if !model.upcomingPlants.isEmpty {
+                Section {
+                    ForEach(model.upcomingPlants) { plant in
+                        row(for: plant)
                     }
-                    .listRowBackground(Color.clear)
+                } header: {
+                    Text("Upcoming")
+                        .textCase(nil)
                 }
-
-                if !model.upcomingPlants.isEmpty {
-                    Section {
-                        ForEach(model.upcomingPlants) { plant in
-                            row(for: plant)
-                        }
-                    } header: {
-                        Text("Upcoming")
-                            .textCase(nil)
-                    }
-                    .listRowBackground(Color.clear)
-                }
+                .listRowBackground(Color.clear)
             }
 
             Color.clear
@@ -198,7 +197,8 @@ struct ContentView: View {
                 .accessibilityValue("\(model.completedTodayCount) of \(model.totalTodayCount) complete")
             }
         }
-        .padding(.vertical, 16)
+        .padding(.top, 28)
+        .padding(.bottom, 32)
         .frame(maxWidth: .infinity)
     }
 
@@ -215,16 +215,11 @@ struct ContentView: View {
                 withAnimation(careAnimation) { _ = model.delete(plant) }
             } label: {
                 Label("Delete", systemImage: "trash")
+                    .labelStyle(.iconOnly)
             }
-            Button {
-                viewModel.editPlant(plant)
-            } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-            .tint(PlantTheme.accent.opacity(0.6))
         }
         .listRowSeparatorTint(.white.opacity(0.14))
-        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 20))
+        .listRowInsets(EdgeInsets(top: 12, leading: 8, bottom: 12, trailing: 16))
     }
 
     private var addButton: some View {
@@ -232,15 +227,10 @@ struct ContentView: View {
             viewModel.addPlant()
         } label: {
             Image(systemName: "plus")
-                .font(.title2.weight(.medium))
-                .foregroundStyle(.white)
-                .frame(width: 52, height: 52)
-                .background(PlantTheme.accent.opacity(0.5), in: Circle())
-                .overlay(Circle().stroke(PlantTheme.accent.opacity(0.7), lineWidth: 1))
         }
+        .buttonStyle(PlantRoundButton(isProminent: true))
         .accessibilityLabel("Add plant reminder")
         .accessibilityIdentifier("reminders.add")
-        .shadow(color: .black.opacity(0.4), radius: 8, y: 3)
     }
 }
 
@@ -254,7 +244,7 @@ private struct PlantReminderRow: View {
     private var model: PlantRowViewModel { PlantRowViewModel(plant: plant, day: day) }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Button(action: onToggle) {
                 Image(systemName: model.isComplete ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: checkSize, weight: .light))
@@ -271,7 +261,7 @@ private struct PlantReminderRow: View {
 
             Button(action: onEdit) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("in \(plant.room.displayName)", systemImage: "location")
+                    Label("in \(plant.room.displayName)", systemImage: "paperplane")
                         .font(.caption)
                         .foregroundStyle(PlantTheme.secondary)
                     Text(plant.name)

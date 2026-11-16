@@ -110,7 +110,7 @@ final class ScreenViewModelTests: XCTestCase {
         for plant in [biweekly, weekly, daily] { XCTAssertTrue(model.save(plant)) }
         XCTAssertEqual(model.progressMessage, "Your plants are waiting for a sip 💦")
         XCTAssertTrue(model.toggleCompletion(for: weekly))
-        XCTAssertEqual(model.progressMessage, "1 of 3 plants feel loved today ✨")
+        XCTAssertEqual(model.progressMessage, "1 of your plants feel loved today!✨")
         XCTAssertEqual(model.todayPlants.count, 3)
         XCTAssertTrue(model.toggleCompletion(for: biweekly))
         XCTAssertTrue(model.toggleCompletion(for: daily))

@@ -111,7 +111,7 @@ final class PlantsViewModel: ObservableObject {
     var progressMessage: String {
         if totalTodayCount == 0 { return "Your plants are all set for today 🌿" }
         if completedTodayCount == 0 { return "Your plants are waiting for a sip 💦" }
-        return "\(completedTodayCount) of \(totalTodayCount) plants feel loved today ✨"
+        return "\(completedTodayCount) of your plants feel loved today!✨"
     }
 
     private func updatePresentation() {
